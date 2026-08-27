@@ -2,6 +2,10 @@ package team.trimark.gateway.type;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -110,5 +114,21 @@ class BusinessDateTimeTest {
     @Test
     void fromTemporalRejectsNull() {
         assertThrows(IllegalArgumentException.class, () -> BusinessDateTime.fromTemporal(null));
+    }
+
+    @Test
+    void javaSerializationRoundTrips() throws Exception {
+        BusinessDateTime bdt = BusinessDateTime.atClose(LocalDate.of(2026, 8, 27));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(bdt);
+        }
+        Object read;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            read = in.readObject();
+        }
+
+        assertEquals(bdt, read);
     }
 }

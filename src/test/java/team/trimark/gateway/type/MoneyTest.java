@@ -2,6 +2,10 @@ package team.trimark.gateway.type;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
@@ -134,5 +138,21 @@ class MoneyTest {
     void fromStringRejectsGarbage() {
         assertThrows(IllegalArgumentException.class, () -> Money.fromString("nonsense"));
         assertThrows(NullPointerException.class, () -> Money.fromString(null));
+    }
+
+    @Test
+    void javaSerializationRoundTrips() throws Exception {
+        Money m = Money.of(new BigDecimal("100.50"), "USD", Map.of("EUR", new BigDecimal("90"), "KRW", new BigDecimal("130000")));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(m);
+        }
+        Object read;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            read = in.readObject();
+        }
+
+        assertEquals(m, read);
     }
 }

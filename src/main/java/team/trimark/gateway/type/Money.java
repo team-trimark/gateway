@@ -2,6 +2,7 @@ package team.trimark.gateway.type;
 
 import team.trimark.gateway.Constants;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -9,7 +10,9 @@ import java.util.*;
 /**
  * The unit of money.
  */
-public class Money extends Number implements Comparable<Number> {
+public class Money extends Number implements Comparable<Number>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     /**
      * Creates a new money instance.
      *
@@ -70,6 +73,9 @@ public class Money extends Number implements Comparable<Number> {
 
     private final BigDecimal amount;
     private final String currency;
+    // Declared as Map for the API, but always the serializable immutable map from Map.copyOf (String/BigDecimal are
+    // serializable), so the whole figure serializes; the [serial] warning on the interface-typed field is a false alarm.
+    @SuppressWarnings("serial")
     private final Map<String, BigDecimal> conversions;
 
     /**

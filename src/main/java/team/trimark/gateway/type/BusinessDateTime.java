@@ -13,6 +13,8 @@ import java.util.Objects;
  * Always compare date first - then time. Signed {@code long} for the time, {@link LocalDate} for the date.
  */
 public class BusinessDateTime implements Comparable<BusinessDateTime>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     /**
      * Arbitrary number chosen to mark closing entries, error corrections, or other non-standard entries.
      */
