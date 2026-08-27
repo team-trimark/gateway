@@ -70,44 +70,28 @@ class BusinessMathTest {
     }
 
     @Test
-    void multiplyElementwise() {
+    void multiplyScalarScalesEveryNotation() {
         Money m = Money.of(bd("6"), "USD", Map.of("EUR", bd("5")));
-        Money n = Money.of(bd("2"), "USD", Map.of("EUR", bd("3")));
 
-        Money product = BusinessMath.multiply(m, n);
+        Money product = BusinessMath.multiply(m, bd("2"));
 
         assertEquals(0, product.getAmount().compareTo(bd("12")));
-        assertEquals(0, product.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("15")));
+        assertEquals(0, product.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("10")));
     }
 
     @Test
-    void divideElementwiseWithRounding() {
+    void divideScalarScalesEveryNotationWithRounding() {
         Money numerator = Money.of(bd("10"), "USD", Map.of("EUR", bd("9")));
-        Money denominator = Money.of(bd("4"), "USD", Map.of("EUR", bd("3")));
 
-        Money quotient = BusinessMath.divide(numerator, denominator);
+        Money quotient = BusinessMath.divide(numerator, bd("4"));
 
         assertEquals(0, quotient.getAmount().compareTo(bd("2.5")));
-        assertEquals(0, quotient.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("3")));
+        assertEquals(0, quotient.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("2.25")));
     }
 
     @Test
-    void divideByZeroInBaseCurrencyThrows() {
-        Money numerator = Money.of(bd("10"), "USD");
-        Money denominator = Money.of(bd("0"), "USD");
-
-        assertThrows(IllegalArgumentException.class, () -> BusinessMath.divide(numerator, denominator));
-    }
-
-    @Test
-    void divideDisregardsZeroDenominatorInNonBaseCurrency() {
-        Money numerator = Money.of(bd("10"), "USD", Map.of("EUR", bd("9")));
-        Money denominator = Money.of(bd("5"), "USD", Map.of("EUR", bd("0")));
-
-        Money quotient = BusinessMath.divide(numerator, denominator);
-
-        assertEquals(0, quotient.getAmount().compareTo(bd("2")));
-        assertTrue(quotient.getAmountInCurrency("EUR").isEmpty()); // EUR dropped (zero divisor)
+    void divideByZeroScalarThrows() {
+        assertThrows(IllegalArgumentException.class, () -> BusinessMath.divide(Money.of(bd("10"), "USD"), bd("0")));
     }
 
     @Test
@@ -127,6 +111,9 @@ class BusinessMathTest {
     void nullArgumentsThrow() {
         assertThrows(NullPointerException.class, () -> BusinessMath.abs(null));
         assertThrows(NullPointerException.class, () -> BusinessMath.negate(null));
-        assertThrows(NullPointerException.class, () -> BusinessMath.divide(null, Money.of(1L, "USD")));
+        assertThrows(NullPointerException.class, () -> BusinessMath.multiply(null, bd("1")));
+        assertThrows(NullPointerException.class, () -> BusinessMath.multiply(Money.of(1L, "USD"), null));
+        assertThrows(NullPointerException.class, () -> BusinessMath.divide(null, bd("1")));
+        assertThrows(NullPointerException.class, () -> BusinessMath.divide(Money.of(1L, "USD"), null));
     }
 }

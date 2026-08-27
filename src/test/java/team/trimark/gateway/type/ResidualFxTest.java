@@ -101,16 +101,11 @@ class ResidualFxTest {
     }
 
     @Test
-    void businessMathDivideKeepsForeignButFailsOnZeroBaseDenominator() {
-        Money numerator = Money.of(bd("0"), "USD", Map.of("EUR", bd("6")));
-        Money denominator = Money.of(bd("2"), "USD", Map.of("EUR", bd("3")));
+    void businessMathScalarDivideScalesTheResidual() {
+        Money quotient = BusinessMath.divide(Money.of(bd("0"), "USD", Map.of("EUR", bd("6"))), bd("2"));
 
-        Money quotient = BusinessMath.divide(numerator, denominator);
         assertEquals(0, quotient.getAmount().compareTo(BigDecimal.ZERO));                       // 0 / 2 USD
-        assertEquals(0, quotient.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("2")));  // 6 / 3 EUR
-
-        // A residual as the denominator: zero in the base currency -> division by zero.
-        assertThrows(IllegalArgumentException.class, () -> BusinessMath.divide(denominator, residual()));
+        assertEquals(0, quotient.getAmountInCurrency("EUR").orElseThrow().compareTo(bd("3")));  // 6 / 2 EUR
     }
 
     @Test
@@ -137,5 +132,75 @@ class ResidualFxTest {
         assertEquals(0, b.getBalance("1000").getAmount().compareTo(BigDecimal.ZERO));
         assertEquals(0, b.getTotalIncome().getAmount().compareTo(BigDecimal.ZERO));
         assertEquals(0, b.getDefaultCurrencyResidual().getAmount().compareTo(BigDecimal.ZERO));
+    }
+
+    // ---- mirror case: non-zero base, zero FX notation (a USD position sitting at 0 in a KRW book) ----
+
+    /** 100 USD, but 0 KRW. */
+    private static Money usdResidualInKrw() {
+        return Money.of(bd("100"), "USD", Map.of("KRW", BigDecimal.ZERO));
+    }
+
+    @Test
+    void mirrorAccessorsSeeNonZeroBaseAndZeroForeign() {
+        Money r = usdResidualInKrw();
+
+        assertEquals(0, r.getAmount().compareTo(bd("100")));
+        assertEquals(0, r.getAmountInCurrency("KRW").orElseThrow().compareTo(BigDecimal.ZERO));
+        assertTrue(r.hasCurrency("KRW"));
+    }
+
+    @Test
+    void mirrorRebaseTrustsTheStaleZeroNotation() {
+        // rebase(String) uses the known (zero) KRW notation - it does not invent a rate.
+        Money asKrw = usdResidualInKrw().rebase("KRW");
+
+        assertEquals("KRW", asKrw.getCurrency());
+        assertEquals(0, asKrw.getAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(0, asKrw.getAmountInCurrency("USD").orElseThrow().compareTo(bd("100"))); // old base folded in
+    }
+
+    @Test
+    void mirrorRebaseToUnknownCurrencyWithNonZeroBaseThrows() {
+        // No EUR notation and a non-zero base -> a rate would be required, so it throws.
+        assertThrows(IllegalArgumentException.class, () -> usdResidualInKrw().rebase("EUR"));
+    }
+
+    @Test
+    void fixingTheUsdResidualWithAnExplicitRate() {
+        // Supplying a real rate (1300 KRW per USD) overrides the stale zero notation.
+        Money fixed = usdResidualInKrw().rebase("KRW", bd("1300"), false);
+
+        assertEquals("KRW", fixed.getCurrency());
+        assertEquals(0, fixed.getAmount().compareTo(bd("130000")));               // 100 * 1300
+        assertEquals(0, fixed.getAmountInCurrency("USD").orElseThrow().compareTo(bd("100")));
+    }
+
+    @Test
+    void krwBookWithUsdResidualIsValidButReadsZeroUntilFixed() {
+        FinancialAccount cash = FinancialAccount.of("1000", "Cash", "Cash", FinancialAccountType.ASSET);
+        FinancialAccount revenue = FinancialAccount.of("4000", "Rev", "Revenue", FinancialAccountType.INCOME);
+
+        // Booked in USD (100 == 100), but the KRW default notation is a placeholder zero.
+        FinancialEntry unfixed = FinancialEntry.of("USD",
+                List.of(FinancialEntryLine.of(cash, usdResidualInKrw())),
+                List.of(FinancialEntryLine.of(revenue, usdResidualInKrw())),
+                BusinessDateTime.of(2026, 1, 1, 0), "usd sale", "");
+        Book b = Book.of("KRW", List.of(unfixed));
+
+        assertTrue(b.isValid());
+        assertEquals(0, b.getBalance("1000").getAmount().compareTo(BigDecimal.ZERO)); // 0 KRW
+        // The USD position is foreign; its weighted-average rate is 0, flagging the unfixed residual.
+        assertEquals(0, b.getWeightedAverageExchangeRate("1000", "USD").orElseThrow().compareTo(BigDecimal.ZERO));
+
+        // Fixing the residual: correct the KRW notation (1300 KRW per USD) while the line stays USD-denominated.
+        Money fixed = Money.of(bd("100"), "USD", Map.of("KRW", bd("130000")));
+        Book fixedBook = Book.of("KRW", List.of(FinancialEntry.of("USD",
+                List.of(FinancialEntryLine.of(cash, fixed)),
+                List.of(FinancialEntryLine.of(revenue, fixed)),
+                BusinessDateTime.of(2026, 1, 1, 0), "usd sale", "")));
+
+        assertEquals(0, fixedBook.getBalance("1000").getAmount().compareTo(bd("130000")));
+        assertEquals(0, fixedBook.getWeightedAverageExchangeRate("1000", "USD").orElseThrow().compareTo(bd("1300")));
     }
 }

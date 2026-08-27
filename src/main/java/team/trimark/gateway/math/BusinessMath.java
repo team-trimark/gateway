@@ -16,10 +16,11 @@ import java.util.function.UnaryOperator;
 /**
  * Contains business math.
  *
- * <p>Binary operations treat each {@link Money} as a bundle of currency notations and operate elementwise over the
- * currencies that <b>both</b> operands carry (the FX notations are blended). A notation held by only one operand is
- * disregarded. The result is denominated in the incumbent's ({@code m}'s, or the numerator's) base currency, which is
- * why these operations are not commutative.
+ * <p>Additive operations ({@link #add} and {@link #subtract}) treat each {@link Money} as a bundle of currency
+ * notations and operate elementwise over the currencies that <b>both</b> operands carry (the FX notations are blended);
+ * a notation held by only one operand is disregarded, and the result is denominated in the incumbent's base currency,
+ * which is why they are not commutative. Scalar operations ({@link #multiply} and {@link #divide}) scale every notation
+ * of a single {@link Money} by a {@link BigDecimal}.
  */
 public final class BusinessMath {
     /**
@@ -48,53 +49,32 @@ public final class BusinessMath {
     }
 
     /**
-     * Multiplies money elementwise, *not* commutative. Fails if the two values do not have a common currency. FX
-     * notations which only one parameter has are disregarded.
-     * @param m The incumbent - the return value will have its default currency
-     * @param n The money to multiply the incumbent by
-     * @return The product {@code m * n}.
+     * Multiplies money by a scalar - every currency notation is multiplied by the factor.
+     * @param m      The money
+     * @param factor The scalar factor
+     * @return The product {@code m * factor}
      * @throws NullPointerException When a {@code null} parameter is given
-     * @throws IllegalArgumentException When the calculation is not possible
      */
-    public static Money multiply(Money m, Money n) throws NullPointerException, IllegalArgumentException {
-        return combine(m, n, "multiply", BigDecimal::multiply);
+    public static Money multiply(Money m, BigDecimal factor) throws NullPointerException {
+        Objects.requireNonNull(m);
+        Objects.requireNonNull(factor);
+        return mapNotations(m, v -> v.multiply(factor));
     }
 
     /**
-     * Divides money elementwise, *not* commutative. Fails if the two values do not have a common currency. FX notations
-     * which only one parameter has are disregarded. Inexact quotients are rounded to {@link Constants#BIG_DECIMAL_SCALE}
-     * decimal places. A zero denominator in the numerator's base currency throws; a zero denominator in any other
-     * shared currency causes that notation to be disregarded.
-     * @param numerator   The incumbent - the return value will have its default currency
-     * @param denominator The money to divide the numerator by
-     * @return The quotient {@code numerator / denominator}.
+     * Divides money by a scalar - every currency notation is divided by the divisor. Inexact quotients are rounded to
+     * {@link Constants#BIG_DECIMAL_SCALE} decimal places.
+     * @param numerator The money
+     * @param divisor   The scalar divisor
+     * @return The quotient {@code numerator / divisor}
      * @throws NullPointerException When a {@code null} parameter is given
-     * @throws IllegalArgumentException When the calculation is not possible, including division by zero
+     * @throws IllegalArgumentException When the divisor is zero
      */
-    public static Money divide(Money numerator, Money denominator) throws NullPointerException, IllegalArgumentException {
+    public static Money divide(Money numerator, BigDecimal divisor) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(numerator);
-        Objects.requireNonNull(denominator);
-
-        String baseCurrency = numerator.getCurrency();
-        if (!denominator.hasCurrency(baseCurrency)) {
-            throw new IllegalArgumentException("The denominator does not have a notation in the numerator's base currency.");
-        }
-
-        Map<String, BigDecimal> conversions = new HashMap<>();
-        BigDecimal baseAmount = null;
-        for (String currency : commonCurrencies(numerator, denominator)) {
-            BigDecimal num = numerator.getAmountInCurrency(currency).orElseThrow();
-            BigDecimal den = denominator.getAmountInCurrency(currency).orElseThrow();
-
-            if (currency.equals(baseCurrency)) {
-                if (den.signum() == 0) throw new IllegalArgumentException("Division by zero.");
-                baseAmount = num.divide(den, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN);
-            } else if (den.signum() != 0) {
-                conversions.put(currency, num.divide(den, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN));
-            }
-        }
-
-        return Money.of(baseAmount, baseCurrency, conversions);
+        Objects.requireNonNull(divisor);
+        if (divisor.signum() == 0) throw new IllegalArgumentException("Division by zero.");
+        return mapNotations(numerator, v -> v.divide(divisor, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN));
     }
 
     /**
