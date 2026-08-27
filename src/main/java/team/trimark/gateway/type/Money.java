@@ -1,5 +1,7 @@
 package team.trimark.gateway.type;
 
+import team.trimark.gateway.Constants;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -143,21 +145,57 @@ public class Money extends Number implements Comparable<Number> {
         return conversions;
     }
 
+    /**
+     * Re-expresses this money in the target currency, using a rate implied by an existing conversion. The target
+     * becomes the new base currency and the current base is folded into the conversion map.
+     *
+     * <p>Zero is zero in every currency, so a zero amount rebases to zero regardless of whether a conversion for the
+     * target exists - the operation never fails on a zero amount.
+     *
+     * @param targetCurrency The target currency
+     * @return The rebased money
+     * @throws IllegalArgumentException When the amount is non-zero and no conversion to the target currency exists
+     */
     public Money rebase(String targetCurrency) throws IllegalArgumentException {
+        // Zero is zero in every currency; short-circuit so a missing rate or a divide-by-zero can never fail.
+        if (amount.signum() == 0) {
+            Map<String, BigDecimal> zeroed = new HashMap<>();
+            zeroed.put(currency, BigDecimal.ZERO);
+            conversions.forEach((k, v) -> {
+                if (Objects.equals(k, targetCurrency)) return;
+                zeroed.put(k, BigDecimal.ZERO);
+            });
+
+            return new Money(BigDecimal.ZERO, targetCurrency, zeroed);
+        }
+
         BigDecimal target = getAmountInCurrency(targetCurrency).orElseThrow(() -> new IllegalArgumentException("Cannot convert to currency without exchange rate."));
-        BigDecimal exchangeRate = target.divide(amount, RoundingMode.HALF_EVEN);
+        // target per incumbent (the incumbent is the denominator), hence incumbentAsNumerator = false below.
+        BigDecimal exchangeRate = target.divide(amount, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN);
 
         return rebase(targetCurrency, exchangeRate, false);
     }
 
+    /**
+     * Re-expresses this money in the target currency at the given exchange rate. The target becomes the new base
+     * currency, the current base is folded into the conversion map, and stale conversions are carried over as-is.
+     *
+     * @param targetCurrency       The target currency
+     * @param exchangeRate         The exchange rate, which must be positive and non-null
+     * @param incumbentAsNumerator {@code true} when the rate is expressed with the current (incumbent) currency as the
+     *                             numerator (incumbent per target); {@code false} when it is target per incumbent
+     * @return The rebased money
+     * @throws IllegalArgumentException When the exchange rate is null or not positive
+     */
     public Money rebase(String targetCurrency, BigDecimal exchangeRate, boolean incumbentAsNumerator) {
         if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Exchange rate must be positive and non-null.");
         }
 
+        // newAmount = amount * (target per incumbent). When the incumbent is the numerator we must invert the rate.
         BigDecimal rateToTarget = incumbentAsNumerator
-                ? exchangeRate
-                : BigDecimal.ONE.divide(exchangeRate, RoundingMode.HALF_EVEN);
+                ? BigDecimal.ONE.divide(exchangeRate, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN)
+                : exchangeRate;
 
         BigDecimal newAmount = amount.multiply(rateToTarget);
         Map<String, BigDecimal> newConversions = new HashMap<>();
@@ -181,10 +219,18 @@ public class Money extends Number implements Comparable<Number> {
     @Override
     public int compareTo(Number o) throws RuntimeException {
         if (o instanceof Money m) {
-            return m.getAmountInCurrency(currency)
-                    .or(() -> getAmountInCurrency(m.currency))
-                    .map(amount::compareTo)
-                    .orElseThrow(() -> new RuntimeException("Currency mismatch - cannot compare the two amounts."));
+            // Prefer expressing the other money in this currency; otherwise express this money in the other currency.
+            Optional<BigDecimal> otherInThis = m.getAmountInCurrency(currency);
+            if (otherInThis.isPresent()) {
+                return amount.compareTo(otherInThis.get());
+            }
+
+            Optional<BigDecimal> thisInOther = getAmountInCurrency(m.currency);
+            if (thisInOther.isPresent()) {
+                return thisInOther.get().compareTo(m.amount);
+            }
+
+            throw new RuntimeException("Currency mismatch - cannot compare the two amounts.");
         } else if (o instanceof BigDecimal d) {
             return amount.compareTo(d);
         } else {
@@ -210,5 +256,119 @@ public class Money extends Number implements Comparable<Number> {
     @Override
     public double doubleValue() {
         return amount.doubleValue();
+    }
+
+    /**
+     * Compares two money instances by value. Amounts are compared numerically (scale-insensitive, consistent with
+     * {@link #compareTo(Number)}), so {@code 2} and {@code 2.00} in the same currency are equal.
+     *
+     * @param o The object to compare
+     * @return {@code true} if the two represent the same currency, amount, and conversions
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Money m)) return false;
+
+        return Objects.equals(currency, m.currency)
+                && numericEquals(amount, m.amount)
+                && conversionsEqual(m.conversions);
+    }
+
+    /**
+     * Returns a hash code consistent with {@link #equals(Object)}. Derived from the currency alone, which every equal
+     * pair shares, keeping the code stable across differing amount scales.
+     *
+     * @return The hash code
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(currency);
+    }
+
+    /**
+     * Returns whether two nullable {@link BigDecimal}s are numerically equal (ignoring scale).
+     */
+    private static boolean numericEquals(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) return a == b;
+        return a.compareTo(b) == 0;
+    }
+
+    /**
+     * Returns whether this instance's conversions are numerically equal to the other's (same keys, same values).
+     */
+    private boolean conversionsEqual(Map<String, BigDecimal> other) {
+        if (conversions.size() != other.size()) return false;
+        for (Map.Entry<String, BigDecimal> e : conversions.entrySet()) {
+            if (!numericEquals(e.getValue(), other.get(e.getKey()))) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Serializes this money to a string that {@link #fromString(String)} can round-trip. Conversions are emitted in a
+     * deterministic (currency-sorted) order. The format assumes currency codes contain none of {@code , = { }}.
+     *
+     * @return The serialized form, e.g. {@code Money{amount=100,currency=USD,conversions={EUR=90.00}}}
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Money{amount=").append(amount)
+                .append(",currency=").append(currency)
+                .append(",conversions={");
+
+        boolean first = true;
+        for (Map.Entry<String, BigDecimal> e : new TreeMap<>(conversions).entrySet()) {
+            if (!first) sb.append(',');
+            sb.append(e.getKey()).append('=').append(e.getValue());
+            first = false;
+        }
+
+        return sb.append("}}").toString();
+    }
+
+    /**
+     * Deserializes a money from the form produced by {@link #toString()}.
+     *
+     * @param s The serialized form
+     * @return The money instance
+     * @throws IllegalArgumentException When the string is not a well-formed serialized money
+     */
+    public static Money fromString(String s) throws IllegalArgumentException {
+        Objects.requireNonNull(s, "Cannot deserialize null.");
+        String str = s.trim();
+
+        String prefix = "Money{";
+        if (!str.startsWith(prefix) || !str.endsWith("}")) {
+            throw new IllegalArgumentException("Not a serialized Money: " + s);
+        }
+
+        try {
+            // body := amount=<amount>,currency=<currency>,conversions={<conversions>}
+            String body = str.substring(prefix.length(), str.length() - 1);
+
+            int amountStart = body.indexOf("amount=") + "amount=".length();
+            int currencyMark = body.indexOf(",currency=");
+            int currencyStart = currencyMark + ",currency=".length();
+            int conversionsMark = body.indexOf(",conversions=");
+            int conversionsStart = body.indexOf('{', conversionsMark) + 1;
+
+            BigDecimal amount = new BigDecimal(body.substring(amountStart, currencyMark));
+            String currency = body.substring(currencyStart, conversionsMark);
+
+            // The conversions block is the remainder, minus its own closing brace.
+            String conversionsBody = body.substring(conversionsStart, body.length() - 1);
+            Map<String, BigDecimal> conversions = new HashMap<>();
+            if (!conversionsBody.isEmpty()) {
+                for (String pair : conversionsBody.split(",")) {
+                    int eq = pair.indexOf('=');
+                    conversions.put(pair.substring(0, eq), new BigDecimal(pair.substring(eq + 1)));
+                }
+            }
+
+            return new Money(amount, currency, conversions);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Not a serialized Money: " + s, e);
+        }
     }
 }
