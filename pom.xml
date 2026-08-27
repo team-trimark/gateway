@@ -8,6 +8,15 @@
     <artifactId>Gateway</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <licenses>
+        <license>
+            <name>Apache-2.0 WITH Commons-Clause</name>
+            <url>https://raw.githubusercontent.com/team-trimark/gateway/main/LICENSE</url>
+            <distribution>repo</distribution>
+            <comments>Source-available: Apache License 2.0 with the Commons Clause condition.</comments>
+        </license>
+    </licenses>
+
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
