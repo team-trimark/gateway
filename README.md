@@ -1,6 +1,6 @@
 # Gateway
 
-Part of the **Gateway Project** — a lightweight, open-source framework for tailored business management
+Part of the **Gateway Project** — a lightweight, source-available framework for tailored business management
 solutions. By minimizing the feature set, we aim to maximize customizability and provide a versatile codebase
 for any application.
 
@@ -105,6 +105,25 @@ Money eur = usd.rebase("EUR", new BigDecimal("0.92"), false); // 0.92 EUR per US
 eur.getAmountInCurrency("USD"); // the original 100 USD is kept as a conversion
 ```
 
+## License
+
+Copyright 2026 Team Trimark of Mirae Research.
+
+Gateway is **source-available** software (not OSI "open source"). It is licensed under the
+**Apache License, Version 2.0, with the Commons Clause** condition. See [LICENSE](LICENSE) for the full terms.
+
+In plain terms:
+
+- **Allowed** — personal use; non-profit redistribution, as-is or modified; using Gateway as a dependency or
+  integrating it into your own codebase, including commercial and for-profit products; and for-profit
+  redistribution of substantially transformed works.
+- **Not allowed** — selling the Software itself: providing, for a fee, a product or service whose value derives
+  entirely or substantially from Gateway's own functionality (i.e. reselling Gateway as-is or lightly modified).
+- **Always required** — keep the copyright and license notices (attribution) on any redistribution or
+  integration.
+
+This summary is for convenience only; the [LICENSE](LICENSE) file governs.
+
 ## Contact
 
 **Team Trimark of Mirae Research**
@@ -112,3 +131,4 @@ eur.getAmountInCurrency("USD"); // the original 100 USD is kept as a conversion
 - Sales: [biz@sjun.me](mailto:biz@sjun.me) (En/Ko)
 - KR BRN 726-15-02574
 - Payment methods: PayPal, Korean bank transfer (계좌이체)
+- VAT invoices available to domestic business clients
