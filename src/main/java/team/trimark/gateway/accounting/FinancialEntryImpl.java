@@ -8,44 +8,12 @@ import java.util.Optional;
 
 /**
  * The standard {@link FinancialEntry} implementation. An entry is immutable once created; its debit and credit sides are
- * ordered lists that may hold multiple lines against the same account, and identical lines are permitted.
+ * ordered lists that may hold multiple lines against the same account, and identical lines are permitted. Instances are
+ * created through the {@link FinancialEntry#of} factories.
  */
 public final class FinancialEntryImpl implements FinancialEntry {
     /**
-     * Creates a new entry with no edit reason.
-     *
-     * @param currency         The entry currency
-     * @param debit            The debit lines
-     * @param credit           The credit lines
-     * @param businessDateTime The business date and time
-     * @param summary          The summary
-     * @param description      The description
-     * @return The entry
-     */
-    public static FinancialEntryImpl of(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
-                                        BusinessDateTime businessDateTime, String summary, String description) {
-        return of(currency, debit, credit, businessDateTime, summary, description, null);
-    }
-
-    /**
-     * Creates a new entry.
-     *
-     * @param currency         The entry currency
-     * @param debit            The debit lines
-     * @param credit           The credit lines
-     * @param businessDateTime The business date and time
-     * @param summary          The summary
-     * @param description      The description
-     * @param editReason       The edit reason, or null
-     * @return The entry
-     */
-    public static FinancialEntryImpl of(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
-                                        BusinessDateTime businessDateTime, String summary, String description, String editReason) {
-        return new FinancialEntryImpl(currency, debit, credit, businessDateTime, summary, description, editReason);
-    }
-
-    /**
-     * Private constructor.
+     * Package-private constructor, invoked by the {@link FinancialEntry#of} factories.
      *
      * @param currency         The currency
      * @param debit            The debit lines
@@ -55,8 +23,8 @@ public final class FinancialEntryImpl implements FinancialEntry {
      * @param description      The description
      * @param editReason       The edit reason
      */
-    private FinancialEntryImpl(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
-                              BusinessDateTime businessDateTime, String summary, String description, String editReason) {
+    FinancialEntryImpl(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
+                       BusinessDateTime businessDateTime, String summary, String description, String editReason) {
         this.currency = currency;
         this.debit = List.copyOf(debit);
         this.credit = List.copyOf(credit);

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class FinancialAccountImplTest {
     @Test
     void identityAndTypeAreExposed() {
-        FinancialAccount a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
 
         assertEquals("1000", a.getAccountId());
         assertEquals("Cash", a.getAccountShortName());
@@ -25,7 +25,7 @@ class FinancialAccountImplTest {
 
     @Test
     void renamingIsAllowed() {
-        FinancialAccount a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
 
         a.setAccountShortName("Petty cash");
         a.setAccountFullName("Petty cash box");
@@ -38,7 +38,7 @@ class FinancialAccountImplTest {
 
     @Test
     void localizedNamesAndUnmodifiableLocaleMap() {
-        FinancialAccount a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET,
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET,
                 Map.of("ko", "현금"), null, null, List.of());
 
         assertEquals("현금", a.getAccountLocalizedName("ko").orElseThrow());
@@ -48,7 +48,7 @@ class FinancialAccountImplTest {
 
     @Test
     void usageLifecycleSetters() {
-        FinancialAccountImpl a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
         assertTrue(a.getUsageStartedDateTime().isEmpty());
 
         BusinessDateTime start = BusinessDateTime.of(2026, 1, 1, 0);
@@ -64,7 +64,7 @@ class FinancialAccountImplTest {
     void pausedRangesAreUnmodifiable() {
         BusinessTemporalRange range = BusinessTemporalRange.of(
                 BusinessDateTime.of(2026, 6, 1, 0), BusinessDateTime.of(2026, 6, 30, 0));
-        FinancialAccount a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET,
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET,
                 Map.of(), null, null, List.of(range));
 
         assertEquals(List.of(range), a.getUsagePausedRanges());
@@ -73,9 +73,9 @@ class FinancialAccountImplTest {
 
     @Test
     void equalityIsByAccountId() {
-        FinancialAccount a = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
-        FinancialAccount sameId = FinancialAccountImpl.of("1000", "Different name", "Different full", FinancialAccountType.LIABILITY);
-        FinancialAccount otherId = FinancialAccountImpl.of("2000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+        FinancialAccount a = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+        FinancialAccount sameId = FinancialAccount.of("1000", "Different name", "Different full", FinancialAccountType.LIABILITY);
+        FinancialAccount otherId = FinancialAccount.of("2000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
 
         assertEquals(a, sameId);
         assertEquals(a.hashCode(), sameId.hashCode());
@@ -85,6 +85,6 @@ class FinancialAccountImplTest {
     @Test
     void nullIdentityIsRejected() {
         assertThrows(NullPointerException.class,
-                () -> FinancialAccountImpl.of(null, "Cash", "Cash on hand", FinancialAccountType.ASSET));
+                () -> FinancialAccount.of(null, "Cash", "Cash on hand", FinancialAccountType.ASSET));
     }
 }

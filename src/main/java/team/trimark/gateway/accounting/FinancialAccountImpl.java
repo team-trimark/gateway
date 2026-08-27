@@ -7,44 +7,12 @@ import java.util.*;
 
 /**
  * The standard {@link FinancialAccount} implementation. The account identifier and type are immutable; names, localized
- * names, and the usage lifecycle may change over the account's life.
+ * names, and the usage lifecycle may change over the account's life. Instances are created through the
+ * {@link FinancialAccount#of} factories.
  */
 public final class FinancialAccountImpl implements FinancialAccount {
     /**
-     * Creates a new account with no localized names, no usage window, and no paused ranges.
-     *
-     * @param accountId        The unique, immutable account identifier
-     * @param accountShortName The short name
-     * @param accountFullName  The full name
-     * @param type             The account type
-     * @return The account
-     */
-    public static FinancialAccountImpl of(String accountId, String accountShortName, String accountFullName, FinancialAccountType type) {
-        return of(accountId, accountShortName, accountFullName, type, Map.of(), null, null, List.of());
-    }
-
-    /**
-     * Creates a new account.
-     *
-     * @param accountId              The unique, immutable account identifier
-     * @param accountShortName       The short name
-     * @param accountFullName        The full name
-     * @param type                   The account type
-     * @param localeMap              The initial locale-to-name map
-     * @param usageStartedDateTime   The usage start, or null
-     * @param usageEndedDateTime     The usage end, or null
-     * @param usagePausedRanges      The ranges during which usage was paused
-     * @return The account
-     */
-    public static FinancialAccountImpl of(String accountId, String accountShortName, String accountFullName, FinancialAccountType type,
-                                          Map<String, String> localeMap, BusinessDateTime usageStartedDateTime,
-                                          BusinessDateTime usageEndedDateTime, List<BusinessTemporalRange> usagePausedRanges) {
-        return new FinancialAccountImpl(accountId, accountShortName, accountFullName, type,
-                localeMap, usageStartedDateTime, usageEndedDateTime, usagePausedRanges);
-    }
-
-    /**
-     * Private constructor.
+     * Package-private constructor, invoked by the {@link FinancialAccount#of} factories.
      *
      * @param accountId              The account identifier
      * @param accountShortName       The short name
@@ -55,9 +23,9 @@ public final class FinancialAccountImpl implements FinancialAccount {
      * @param usageEndedDateTime     The usage end
      * @param usagePausedRanges      The paused ranges
      */
-    private FinancialAccountImpl(String accountId, String accountShortName, String accountFullName, FinancialAccountType type,
-                                 Map<String, String> localeMap, BusinessDateTime usageStartedDateTime,
-                                 BusinessDateTime usageEndedDateTime, List<BusinessTemporalRange> usagePausedRanges) {
+    FinancialAccountImpl(String accountId, String accountShortName, String accountFullName, FinancialAccountType type,
+                         Map<String, String> localeMap, BusinessDateTime usageStartedDateTime,
+                         BusinessDateTime usageEndedDateTime, List<BusinessTemporalRange> usagePausedRanges) {
         this.accountId = Objects.requireNonNull(accountId, "Account identifier must be non-null.");
         this.accountShortName = accountShortName;
         this.accountFullName = accountFullName;

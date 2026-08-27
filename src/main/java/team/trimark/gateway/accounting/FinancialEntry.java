@@ -7,6 +7,39 @@ import java.util.*;
 
 public interface FinancialEntry {
     /**
+     * Creates a new entry with no edit reason.
+     *
+     * @param currency         The entry currency
+     * @param debit            The debit lines
+     * @param credit           The credit lines
+     * @param businessDateTime The business date and time
+     * @param summary          The summary
+     * @param description      The description
+     * @return The entry
+     */
+    static FinancialEntry of(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
+                             BusinessDateTime businessDateTime, String summary, String description) {
+        return of(currency, debit, credit, businessDateTime, summary, description, null);
+    }
+
+    /**
+     * Creates a new entry.
+     *
+     * @param currency         The entry currency
+     * @param debit            The debit lines
+     * @param credit           The credit lines
+     * @param businessDateTime The business date and time
+     * @param summary          The summary
+     * @param description      The description
+     * @param editReason       The edit reason, or null
+     * @return The entry
+     */
+    static FinancialEntry of(String currency, List<FinancialEntryLine> debit, List<FinancialEntryLine> credit,
+                             BusinessDateTime businessDateTime, String summary, String description, String editReason) {
+        return new FinancialEntryImpl(currency, debit, credit, businessDateTime, summary, description, editReason);
+    }
+
+    /**
      * Returns whether this entry is valid. An entry is valid when:
      * <ul>
      *     <li>it has a currency,</li>

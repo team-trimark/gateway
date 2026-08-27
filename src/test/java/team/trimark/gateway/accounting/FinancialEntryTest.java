@@ -14,15 +14,15 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for {@link FinancialEntry#isValid()}.
  */
 class FinancialEntryTest {
-    private static final FinancialAccount CASH = FinancialAccountImpl.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
-    private static final FinancialAccount REVENUE = FinancialAccountImpl.of("4000", "Rev", "Revenue", FinancialAccountType.INCOME);
+    private static final FinancialAccount CASH = FinancialAccount.of("1000", "Cash", "Cash on hand", FinancialAccountType.ASSET);
+    private static final FinancialAccount REVENUE = FinancialAccount.of("4000", "Rev", "Revenue", FinancialAccountType.INCOME);
 
     private static FinancialEntryLine line(FinancialAccount account, long amount, String currency) {
         return FinancialEntryLine.of(account, Money.of(amount, currency));
     }
 
     private static FinancialEntry entry(List<FinancialEntryLine> debit, List<FinancialEntryLine> credit) {
-        return FinancialEntryImpl.of("USD", debit, credit, BusinessDateTime.of(2026, 1, 1, 0), "summary", "description");
+        return FinancialEntry.of("USD", debit, credit, BusinessDateTime.of(2026, 1, 1, 0), "summary", "description");
     }
 
     @Test
@@ -97,7 +97,7 @@ class FinancialEntryTest {
 
     @Test
     void nullCurrencyIsInvalid() {
-        FinancialEntry e = FinancialEntryImpl.of(null, List.of(line(CASH, 100, "USD")),
+        FinancialEntry e = FinancialEntry.of(null, List.of(line(CASH, 100, "USD")),
                 List.of(line(REVENUE, 100, "USD")), BusinessDateTime.of(2026, 1, 1, 0), "s", "d");
 
         assertFalse(e.isValid());
