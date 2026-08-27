@@ -150,12 +150,13 @@ public class Money extends Number implements Comparable<Number> {
      * the new base amount directly - preserving any residual foreign value even when the current base amount is zero -
      * and the current base is folded into the conversion map.
      *
-     * <p>When no notation for the target currency exists a rate would be required: a zero amount still rebases to zero
-     * (the operation never fails on a zero amount), while a non-zero amount throws.
+     * <p>When no notation for the target currency exists a rate would be required: a figure that is zero in every
+     * notation still rebases to zero (the operation never fails on a wholly-zero amount), while a figure that holds
+     * value in any currency - including a residual that is zero in its base but non-zero in a conversion - throws.
      *
      * @param targetCurrency The target currency
      * @return The rebased money
-     * @throws IllegalArgumentException When the amount is non-zero and no conversion to the target currency exists
+     * @throws IllegalArgumentException When the figure holds value and no conversion to the target currency exists
      */
     public Money rebase(String targetCurrency) throws IllegalArgumentException {
         if (Objects.equals(targetCurrency, currency)) {
@@ -163,24 +164,34 @@ public class Money extends Number implements Comparable<Number> {
         }
 
         Optional<BigDecimal> knownTarget = getAmountInCurrency(targetCurrency);
-        if (knownTarget.isEmpty()) {
-            // No known value in the target currency, so a rate would be needed. Zero is zero in every currency and can
-            // still rebase; a non-zero amount cannot.
-            if (amount.signum() == 0) {
-                return new Money(BigDecimal.ZERO, targetCurrency, Map.of(currency, BigDecimal.ZERO));
-            }
-            throw new IllegalArgumentException("Cannot convert to currency without exchange rate.");
+        if (knownTarget.isPresent()) {
+            // The target value is already known; re-denominate to it and fold the old base into the conversions.
+            Map<String, BigDecimal> newConversions = new HashMap<>();
+            newConversions.put(currency, amount);
+            conversions.forEach((k, v) -> {
+                if (Objects.equals(k, targetCurrency) || Objects.equals(k, currency)) return;
+                newConversions.put(k, v);
+            });
+
+            return new Money(knownTarget.get(), targetCurrency, newConversions);
         }
 
-        // The target value is already known; re-denominate to it and fold the old base into the conversions.
-        Map<String, BigDecimal> newConversions = new HashMap<>();
-        newConversions.put(currency, amount);
-        conversions.forEach((k, v) -> {
-            if (Objects.equals(k, targetCurrency)) return;
-            newConversions.put(k, v);
-        });
+        // The target value is unknown, so a rate would be required. Only a figure that is zero in every notation can
+        // rebase without one - a residual with value in another currency cannot be converted to an unknown rate.
+        if (isZeroInEveryNotation()) {
+            return new Money(BigDecimal.ZERO, targetCurrency, Map.of(currency, BigDecimal.ZERO));
+        }
 
-        return new Money(knownTarget.get(), targetCurrency, newConversions);
+        throw new IllegalArgumentException("Cannot convert to currency without exchange rate.");
+    }
+
+    /**
+     * Returns whether this figure is zero in its base currency and in every conversion.
+     *
+     * @return {@code true} if every notation is zero
+     */
+    private boolean isZeroInEveryNotation() {
+        return amount.signum() == 0 && conversions.values().stream().allMatch(v -> v.signum() == 0);
     }
 
     /**
@@ -209,7 +220,7 @@ public class Money extends Number implements Comparable<Number> {
 
         newConversions.put(currency, amount);
         conversions.forEach((k, v) -> {
-            if (Objects.equals(k, targetCurrency)) return;
+            if (Objects.equals(k, targetCurrency) || Objects.equals(k, currency)) return;
             newConversions.put(k, v);
         });
 

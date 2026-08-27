@@ -55,9 +55,16 @@ class ResidualFxTest {
     }
 
     @Test
-    void rebaseToUnknownCurrencyWithZeroBaseStillYieldsZero() {
-        // No KRW notation and the base is zero -> failure-proof zero (there is no rate to invent).
-        Money krw = residual().rebase("KRW");
+    void rebaseToUnknownCurrencyWithResidualValueThrows() {
+        // The residual is zero in USD but holds 5 EUR, so its KRW value is unknown - inventing a zero would lose value.
+        assertThrows(IllegalArgumentException.class, () -> residual().rebase("KRW"));
+    }
+
+    @Test
+    void rebaseOfAWhollyZeroFigureToAnUnknownCurrencyStillYieldsZero() {
+        // Zero in every notation -> zero everywhere, so it rebases without a rate.
+        Money zero = Money.of(BigDecimal.ZERO, "USD", Map.of("EUR", BigDecimal.ZERO));
+        Money krw = zero.rebase("KRW");
 
         assertEquals("KRW", krw.getCurrency());
         assertEquals(0, krw.getAmount().compareTo(BigDecimal.ZERO));
