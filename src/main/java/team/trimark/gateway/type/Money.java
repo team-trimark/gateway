@@ -146,34 +146,41 @@ public class Money extends Number implements Comparable<Number> {
     }
 
     /**
-     * Re-expresses this money in the target currency, using a rate implied by an existing conversion. The target
-     * becomes the new base currency and the current base is folded into the conversion map.
+     * Re-expresses this money in the target currency. When a notation for the target currency already exists it becomes
+     * the new base amount directly - preserving any residual foreign value even when the current base amount is zero -
+     * and the current base is folded into the conversion map.
      *
-     * <p>Zero is zero in every currency, so a zero amount rebases to zero regardless of whether a conversion for the
-     * target exists - the operation never fails on a zero amount.
+     * <p>When no notation for the target currency exists a rate would be required: a zero amount still rebases to zero
+     * (the operation never fails on a zero amount), while a non-zero amount throws.
      *
      * @param targetCurrency The target currency
      * @return The rebased money
      * @throws IllegalArgumentException When the amount is non-zero and no conversion to the target currency exists
      */
     public Money rebase(String targetCurrency) throws IllegalArgumentException {
-        // Zero is zero in every currency; short-circuit so a missing rate or a divide-by-zero can never fail.
-        if (amount.signum() == 0) {
-            Map<String, BigDecimal> zeroed = new HashMap<>();
-            zeroed.put(currency, BigDecimal.ZERO);
-            conversions.forEach((k, v) -> {
-                if (Objects.equals(k, targetCurrency)) return;
-                zeroed.put(k, BigDecimal.ZERO);
-            });
-
-            return new Money(BigDecimal.ZERO, targetCurrency, zeroed);
+        if (Objects.equals(targetCurrency, currency)) {
+            return this; // already denominated in the target currency
         }
 
-        BigDecimal target = getAmountInCurrency(targetCurrency).orElseThrow(() -> new IllegalArgumentException("Cannot convert to currency without exchange rate."));
-        // target per incumbent (the incumbent is the denominator), hence incumbentAsNumerator = false below.
-        BigDecimal exchangeRate = target.divide(amount, Constants.BIG_DECIMAL_SCALE, RoundingMode.HALF_EVEN);
+        Optional<BigDecimal> knownTarget = getAmountInCurrency(targetCurrency);
+        if (knownTarget.isEmpty()) {
+            // No known value in the target currency, so a rate would be needed. Zero is zero in every currency and can
+            // still rebase; a non-zero amount cannot.
+            if (amount.signum() == 0) {
+                return new Money(BigDecimal.ZERO, targetCurrency, Map.of(currency, BigDecimal.ZERO));
+            }
+            throw new IllegalArgumentException("Cannot convert to currency without exchange rate.");
+        }
 
-        return rebase(targetCurrency, exchangeRate, false);
+        // The target value is already known; re-denominate to it and fold the old base into the conversions.
+        Map<String, BigDecimal> newConversions = new HashMap<>();
+        newConversions.put(currency, amount);
+        conversions.forEach((k, v) -> {
+            if (Objects.equals(k, targetCurrency)) return;
+            newConversions.put(k, v);
+        });
+
+        return new Money(knownTarget.get(), targetCurrency, newConversions);
     }
 
     /**
