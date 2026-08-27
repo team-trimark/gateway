@@ -59,4 +59,30 @@ public final class EditableBook implements Book {
     public void clearEntries() {
         entries.clear();
     }
+
+    /**
+     * Compares by content - default currency and entries - so a book is equal to any other {@link Book}, of either
+     * variant, carrying the same currency and the same entries in the same order. As this book is mutable, its equality
+     * and hash code change as it is edited.
+     *
+     * @param o The object to compare
+     * @return {@code true} when the two books have the same content
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Book other)) return false;
+
+        return Objects.equals(defaultCurrency, other.getDefaultCurrency()) && entries.equals(other.getEntries());
+    }
+
+    /**
+     * Returns a hash code consistent with {@link #equals(Object)}.
+     *
+     * @return The hash code
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(defaultCurrency, entries);
+    }
 }

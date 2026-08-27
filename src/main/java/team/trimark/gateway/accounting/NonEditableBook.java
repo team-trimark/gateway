@@ -2,6 +2,7 @@ package team.trimark.gateway.accounting;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A non-editable {@link Book}. Its default currency and entries are fixed at construction; every mutation method throws
@@ -55,6 +56,31 @@ public final class NonEditableBook implements Book {
     @Override
     public void clearEntries() {
         throw notEditable();
+    }
+
+    /**
+     * Compares by content - default currency and entries - so a book is equal to any other {@link Book}, of either
+     * variant, carrying the same currency and the same entries in the same order.
+     *
+     * @param o The object to compare
+     * @return {@code true} when the two books have the same content
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Book other)) return false;
+
+        return Objects.equals(defaultCurrency, other.getDefaultCurrency()) && entries.equals(other.getEntries());
+    }
+
+    /**
+     * Returns a hash code consistent with {@link #equals(Object)}.
+     *
+     * @return The hash code
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(defaultCurrency, entries);
     }
 
     /**

@@ -198,6 +198,45 @@ class BookTest {
     }
 
     @Test
+    void copyOfProducesAnEqualNonEditableSnapshot() {
+        Book editable = Book.editable("USD", List.of(
+                entry("invest", 1, List.of(line(CASH, 1000, "USD")), List.of(line(CAPITAL, 1000, "USD"))),
+                entry("sale", 2, List.of(line(CASH, 300, "USD")), List.of(line(REVENUE, 300, "USD")))));
+
+        Book copy = Book.copyOf(editable);
+
+        // Indistinguishable other than the concrete type.
+        assertEquals(NonEditableBook.class, copy.getClass());
+        assertNotEquals(editable.getClass(), copy.getClass());
+        assertEquals(editable, copy);
+        assertEquals(copy, editable);
+        assertEquals(editable.hashCode(), copy.hashCode());
+        assertEquals(editable.getDefaultCurrency(), copy.getDefaultCurrency());
+        assertEquals(editable.getEntries(), copy.getEntries());
+        assertEquals(editable.getBalances(), copy.getBalances());
+        assertEquals(editable.getTotalTransactionVolume(), copy.getTotalTransactionVolume());
+
+        // The copy is read-only...
+        assertThrows(UnsupportedOperationException.class,
+                () -> copy.addEntry(entry("x", 3, List.of(line(CASH, 1, "USD")), List.of(line(REVENUE, 1, "USD")))));
+
+        // ...and a snapshot: mutating the source does not change it.
+        editable.clearEntries();
+        assertNotEquals(editable, copy);
+        assertEquals(2, copy.getEntries().size());
+    }
+
+    @Test
+    void copyOfANonEditableBookIsAlsoEqual() {
+        Book source = sampleBook();
+        Book copy = Book.copyOf(source);
+
+        assertEquals(NonEditableBook.class, copy.getClass());
+        assertEquals(source, copy);
+        assertEquals(source.hashCode(), copy.hashCode());
+    }
+
+    @Test
     void nonEditableBookRejectsEveryMutation() {
         Book b = sampleBook();
         FinancialEntry e = entry("x", 1, List.of(line(CASH, 1, "USD")), List.of(line(REVENUE, 1, "USD")));

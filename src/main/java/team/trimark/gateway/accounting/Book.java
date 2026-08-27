@@ -58,6 +58,20 @@ public interface Book {
         return new EditableBook(defaultCurrency, List.of());
     }
 
+    /**
+     * Creates a non-editable copy of the given book. The copy is indistinguishable from the source other than its
+     * concrete type: it carries the same default currency and the same entries in the same order, and therefore is
+     * {@link Object#equals(Object) equal} to the source. The copy is a snapshot - later mutations to an editable source
+     * do not affect it.
+     *
+     * @param source The book to copy
+     * @return A non-editable copy
+     */
+    static Book copyOf(Book source) {
+        Objects.requireNonNull(source, "Source book must be non-null.");
+        return new NonEditableBook(source.getDefaultCurrency(), source.getEntries());
+    }
+
     // ------------------------------------------------------------------------------------------------------------
     // Core state
     // ------------------------------------------------------------------------------------------------------------
