@@ -30,19 +30,39 @@ public class BusinessDateTime implements Comparable<BusinessDateTime>, Serializa
     }
 
     /**
-     * Returns a BDT from a {@link TemporalAccessor}.
+     * Returns a BDT from a {@link TemporalAccessor}. The accessor must supply a date - i.e. support
+     * {@link ChronoField#EPOCH_DAY}, which is what {@link LocalDate#from} requires - and a time-of-day, i.e. support
+     * {@link ChronoField#MILLI_OF_DAY}. Note that {@code EPOCH_DAY} is the field {@code LocalDate.from} actually needs;
+     * partial fields such as {@code DAY_OF_YEAR} without a year cannot reconstruct a date. Anything else that prevents
+     * a date or time from being derived (an unavailable field, an out-of-range value) is reported as an
+     * {@link IllegalArgumentException} rather than propagating a raw {@link java.time.DateTimeException}.
      *
      * @param t The timestamp
      * @return The BDT
-     * @throws IllegalArgumentException When a necessary temporal field is not supported.
+     * @throws IllegalArgumentException When the accessor is null, lacks a required field, or a value cannot be derived
      */
     public static BusinessDateTime fromTemporal(TemporalAccessor t) throws IllegalArgumentException {
-        if (!t.isSupported(ChronoField.MILLI_OF_DAY)) throw new IllegalArgumentException("MILLI_OF_DAY not supported.");
-        if (!t.isSupported(ChronoField.DAY_OF_YEAR)) throw new IllegalArgumentException("DAY_OF_YEAR not supported.");
+        if (t == null) throw new IllegalArgumentException("Temporal must be non-null.");
+        if (!t.isSupported(ChronoField.EPOCH_DAY)) throw new IllegalArgumentException("EPOCH_DAY not supported - the temporal has no date component.");
+        if (!t.isSupported(ChronoField.MILLI_OF_DAY)) throw new IllegalArgumentException("MILLI_OF_DAY not supported - the temporal has no time-of-day component.");
 
-        return new BusinessDateTime(LocalDate.from(t), t.get(ChronoField.MILLI_OF_DAY));
+        try {
+            return new BusinessDateTime(LocalDate.from(t), t.get(ChronoField.MILLI_OF_DAY));
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Cannot derive a BusinessDateTime from the given temporal.", e);
+        }
     }
 
+    /**
+     * Returns a BDT from calendar fields and a millisecond-of-day.
+     *
+     * @param year         The proleptic year
+     * @param month        The month, from 1 (January) to 12 (December)
+     * @param day          The day of month, from 1 to 31
+     * @param milliseconds The signed millisecond-of-day; may be extended (negative, or at/beyond 24:00)
+     * @return The BDT
+     * @throws IllegalArgumentException When the calendar date (year, month, day) is invalid
+     */
     public static BusinessDateTime of(int year, int month, int day, long milliseconds) {
         try {
             return new BusinessDateTime(LocalDate.of(year, month, day), milliseconds);

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -84,5 +85,30 @@ class BusinessDateTimeTest {
     @Test
     void fromStringRejectsGarbage() {
         assertThrows(IllegalArgumentException.class, () -> BusinessDateTime.fromString("nope"));
+    }
+
+    @Test
+    void fromTemporalReadsDateAndTime() {
+        BusinessDateTime bdt = BusinessDateTime.fromTemporal(LocalDateTime.of(2026, 8, 27, 12, 30, 0));
+
+        assertEquals(LocalDate.of(2026, 8, 27), bdt.getDate());
+        assertEquals(45_000_000L, bdt.getMilliseconds()); // 12:30:00.000
+    }
+
+    @Test
+    void fromTemporalRejectsMissingTimeComponent() {
+        // A LocalDate has no MILLI_OF_DAY.
+        assertThrows(IllegalArgumentException.class, () -> BusinessDateTime.fromTemporal(LocalDate.of(2026, 8, 27)));
+    }
+
+    @Test
+    void fromTemporalRejectsMissingDateComponent() {
+        // A LocalTime has no EPOCH_DAY - LocalDate.from would otherwise throw a raw DateTimeException.
+        assertThrows(IllegalArgumentException.class, () -> BusinessDateTime.fromTemporal(LocalTime.of(12, 30)));
+    }
+
+    @Test
+    void fromTemporalRejectsNull() {
+        assertThrows(IllegalArgumentException.class, () -> BusinessDateTime.fromTemporal(null));
     }
 }
